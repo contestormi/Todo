@@ -6,38 +6,39 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.todolist.R
+import com.example.todolist.data.formatter.DateFormatter
 import com.example.todolist.databinding.ItemTaskBinding
 import com.example.todolist.domain.model.Priority
 import com.example.todolist.domain.model.Task
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
-class TaskAdapter(private val onClick: (Task) -> Unit) :
-    ListAdapter<Task, TaskAdapter.VH>(Diff) {
+class TaskAdapter(
+    private val onClick: (Task) -> Unit,
+    private val dateFormatter: DateFormatter
+) : ListAdapter<Task, TaskAdapter.TaskViewHolder>(Diff) {
 
     override fun onCreateViewHolder(
         parent: ViewGroup,
         viewType: Int
-    ): TaskAdapter.VH {
+    ): TaskAdapter.TaskViewHolder {
         val binding = ItemTaskBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
         )
-        return VH(binding, onClick)
+        return TaskViewHolder(binding, onClick, dateFormatter)
     }
 
     override fun onBindViewHolder(
-        holder: TaskAdapter.VH,
+        holder: TaskAdapter.TaskViewHolder,
         position: Int
     ) {
         holder.bind(getItem(position))
     }
 
-    class VH(
+    class TaskViewHolder(
         private val binding: ItemTaskBinding,
         private val onClick: (Task) -> Unit,
+        private val dateFormatter: DateFormatter,
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: Task) {
@@ -55,11 +56,7 @@ class TaskAdapter(private val onClick: (Task) -> Unit) :
                 Priority.HIGH -> context.getString(R.string.priorityHigh)
             }
 
-            val dueText = item.dueAtMillis?.let {
-                DateTimeFormatter.ofPattern("dd.MM.yyyy")
-                    .withZone(ZoneId.systemDefault())
-                    .format(Instant.ofEpochMilli(it))
-            } ?: "—"
+            val dueText = dateFormatter.formatOrNull(item.dueAtMillis) ?: "—"
 
             binding.metaTextView.text =
                 context.getString(

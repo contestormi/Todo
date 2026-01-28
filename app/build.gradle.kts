@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
+    id("org.jetbrains.kotlin.kapt")
 }
 
 android {
@@ -38,6 +39,17 @@ android {
     buildFeatures {
         viewBinding = true
     }
+    
+    lint {
+        // Включаем линтер
+        checkReleaseBuilds = true
+        // Не прерываем сборку при ошибках линтера (можно изменить на true)
+        abortOnError = false
+        // Игнорируем предупреждения (можно изменить на true для строгой проверки)
+        warningsAsErrors = false
+        // Файл с правилами линтера
+        lintConfig = file("src/main/res/xml/lint.xml")
+    }
 }
 
 dependencies {
@@ -58,6 +70,10 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.work.runtime.ktx)
+    
+    implementation(libs.dagger)
+    kapt(libs.dagger.compiler)
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

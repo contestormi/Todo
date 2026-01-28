@@ -9,11 +9,14 @@ import com.example.todolist.data.toEntity
 import com.example.todolist.domain.model.Task
 import com.example.todolist.domain.repository.TaskRepository
 import com.example.todolist.domain.repository.TaskSort
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.time.Instant
+import javax.inject.Inject
 
-class TaskRepositoryImpl(
+class TaskRepositoryImpl @Inject constructor(
     private val dao: TaskDao,
     private val reminderScheduler: TaskReminderScheduler,
 ) : TaskRepository {
@@ -36,7 +39,7 @@ class TaskRepositoryImpl(
         dao.observeById(id).map { it?.toDomain() }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    override suspend fun upsert(task: Task): Long {
+    override suspend fun upsert(task: Task): Long = withContext(Dispatchers.IO) {
         val now = Instant.now().toEpochMilli()
         val toSave = task.copy(
             createdAtMillis = if (task.id == 0L) now else task.createdAtMillis,
@@ -53,10 +56,10 @@ class TaskRepositoryImpl(
             reminderScheduler.cancel(finalId)
         }
 
-        return finalId
+        finalId
     }
 
-    override suspend fun deleteById(id: Long) {
+    override suspend fun deleteById(id: Long) = withContext(Dispatchers.IO) {
         dao.deleteById(id)
         reminderScheduler.cancel(id)
     }

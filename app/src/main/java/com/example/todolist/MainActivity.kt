@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity(), MainNavigator {
         supportFragmentManager.beginTransaction()
             .replace(
                 R.id.fragment_container,
-                TaskDetailFragment.newInstance(0L)
+                TaskDetailFragment.newInstance(null)
             )
             .addToBackStack(null)
             .commit()
@@ -66,9 +66,4 @@ class MainActivity : AppCompatActivity(), MainNavigator {
         if (Build.VERSION.SDK_INT < 33) return
         requestNotificationsPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
-}
-
-interface MainNavigator {
-    fun openTask(taskId: Long)
-    fun openNewTask()
 }

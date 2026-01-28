@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.todolist.domain.model.Task
-import com.example.todolist.domain.repository.TaskRepository
 import com.example.todolist.domain.repository.TaskSort
 import com.example.todolist.domain.usecase.ObserveTasksUseCase
 import com.example.todolist.domain.usecase.SearchTasksUseCase
@@ -17,17 +16,20 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import javax.inject.Inject
 
-class TaskListViewModel(repository: TaskRepository) : ViewModel() {
-    private val observeTasks = ObserveTasksUseCase(repository)
-    private val searchTasks = SearchTasksUseCase(repository)
+class TaskListViewModel(
+    private val observeTasks: ObserveTasksUseCase,
+    private val searchTasks: SearchTasksUseCase
+) : ViewModel() {
 
-    val query = MutableStateFlow("")
-    val sort = MutableStateFlow(TaskSort.CREATED_AT_DESC)
+    private val _query = MutableStateFlow("")
+
+    private val _sort = MutableStateFlow(TaskSort.CREATED_AT_DESC)
 
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
     val tasks: StateFlow<List<Task>> =
-        combine(query.debounce(250), sort) { q, s -> q to s }
+        combine(_query.debounce(250), _sort) { q, s -> q to s }
             .flatMapLatest { (q, s) ->
                 if (q.isBlank()) observeTasks(s) else searchTasks(q, s)
             }
@@ -38,19 +40,24 @@ class TaskListViewModel(repository: TaskRepository) : ViewModel() {
             )
 
     fun setQuery(value: String) {
-        query.value = value
+        _query.value = value
     }
 
     fun setSort(value: TaskSort) {
-        sort.value = value
+        _sort.value = value
     }
 
-    class Factory(
-        private val repository: TaskRepository,
+    class Factory @Inject constructor(
+        private val observeTasks: ObserveTasksUseCase,
+        private val searchTasks: SearchTasksUseCase,
     ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return TaskListViewModel(repository) as T
+            require(modelClass.isAssignableFrom(TaskListViewModel::class.java)) {
+                "Unknown ViewModel class: ${modelClass.name}"
+            }
+            val viewModel = TaskListViewModel(observeTasks, searchTasks)
+            return modelClass.cast(viewModel)
+                ?: throw IllegalStateException("Failed to cast ViewModel")
         }
     }
 }

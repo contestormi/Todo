@@ -3,35 +3,44 @@ package com.example.todolist.presentation.detail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.todolist.domain.model.Priority
+import com.example.todolist.data.formatter.DateFormatter
 import com.example.todolist.domain.model.Task
-import com.example.todolist.domain.repository.TaskRepository
 import com.example.todolist.domain.usecase.DeleteTaskUseCase
 import com.example.todolist.domain.usecase.ObserveTaskUseCase
 import com.example.todolist.domain.usecase.UpsertTaskUseCase
+import com.example.todolist.presentation.model.TaskFormData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 class TaskDetailViewModel(
-    private val taskId: Long,
-    repository: TaskRepository,
+    private val taskId: Long?,
+    observeTask: ObserveTaskUseCase,
+    private val upsertTask: UpsertTaskUseCase,
+    private val deleteTask: DeleteTaskUseCase,
+    private val dateFormatter: DateFormatter,
 ) : ViewModel() {
-    val dueAtMillis = MutableStateFlow<Long?>(null)
+    private val _dueAtMillis = MutableStateFlow<Long?>(null)
 
-    private val observeTask = ObserveTaskUseCase(repository)
-    private val upsertTask = UpsertTaskUseCase(repository)
-    private val deleteTask = DeleteTaskUseCase(repository)
+    val formattedDueDate: StateFlow<String?> = _dueAtMillis.map { millis ->
+        millis?.let { dateFormatter.format(it) }
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        null
+    )
 
     val task: StateFlow<Task?> =
-        if (taskId == 0L) {
+        if (taskId == null) {
             MutableStateFlow(null)
         } else {
             observeTask(taskId)
-                .onEach { loaded -> dueAtMillis.value = loaded?.dueAtMillis }
+                .onEach { loaded -> _dueAtMillis.value = loaded?.dueAtMillis }
                 .stateIn(
                     viewModelScope,
                     SharingStarted.WhileSubscribed(5_000),
@@ -40,25 +49,22 @@ class TaskDetailViewModel(
         }
 
     fun setDueAt(value: Long?) {
-        dueAtMillis.value = value
+        _dueAtMillis.value = value
     }
 
     fun save(
-        title: String,
-        description: String,
-        priority: Priority,
-        isDone: Boolean,
+        formData: TaskFormData,
         onDone: () -> Unit
     ) {
         viewModelScope.launch {
             val base = task.value
             val toSave = Task(
                 id = base?.id ?: 0L,
-                title = title.trim(),
-                description = description.trim(),
-                priority = priority,
-                dueAtMillis = dueAtMillis.value,
-                isDone = isDone,
+                title = formData.title.trim(),
+                description = formData.description.trim(),
+                priority = formData.priority,
+                dueAtMillis = _dueAtMillis.value,
+                isDone = formData.isDone,
                 createdAtMillis = base?.createdAtMillis ?: 0L,
                 updatedAtMillis = base?.updatedAtMillis ?: 0L,
             )
@@ -68,20 +74,36 @@ class TaskDetailViewModel(
     }
 
     fun delete(onDone: () -> Unit) {
-        if (taskId == 0L) return
+        val id = taskId ?: return
         viewModelScope.launch {
-            deleteTask(taskId)
+            deleteTask(id)
             onDone()
         }
     }
 
-    class Factory(
-        private val taskId: Long,
-        private val repository: TaskRepository,
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return TaskDetailViewModel(taskId, repository) as T
+    class Factory @Inject constructor(
+        private val observeTask: ObserveTaskUseCase,
+        private val upsertTask: UpsertTaskUseCase,
+        private val deleteTask: DeleteTaskUseCase,
+        private val dateFormatter: DateFormatter,
+    ) {
+        fun create(taskId: Long?): ViewModelProvider.Factory {
+            return object : ViewModelProvider.Factory {
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    require(modelClass.isAssignableFrom(TaskDetailViewModel::class.java)) {
+                        "Unknown ViewModel class: ${modelClass.name}"
+                    }
+                    val viewModel = TaskDetailViewModel(
+                        taskId,
+                        observeTask,
+                        upsertTask,
+                        deleteTask,
+                        dateFormatter
+                    )
+                    return modelClass.cast(viewModel)
+                        ?: throw IllegalStateException("Failed to cast ViewModel")
+                }
+            }
         }
     }
 }

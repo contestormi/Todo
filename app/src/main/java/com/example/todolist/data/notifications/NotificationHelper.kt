@@ -15,8 +15,14 @@ object NotificationHelper {
 
     fun ensureChannelExists(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val applicationContext = context.applicationContext
         val notificationManager =
-            context.getSystemService(NotificationManager::class.java) ?: return
+            applicationContext.getSystemService(NotificationManager::class.java) ?: return
+
+        if (notificationManager.getNotificationChannel(CHANNEL_ID) != null) {
+            return
+        }
+        
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Напоминания о задачах",
@@ -34,15 +40,16 @@ object NotificationHelper {
         title: String,
         content: String
     ) {
-        ensureChannelExists(context)
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val applicationContext = context.applicationContext
+        ensureChannelExists(applicationContext)
+        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(content)
             .setAutoCancel(true)
             .build()
 
-        NotificationManagerCompat.from(context)
+        NotificationManagerCompat.from(applicationContext)
             .notify(notificationId, notification)
     }
 }

@@ -1,6 +1,5 @@
 package com.example.todolist.data.notifications
 
-import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.work.OneTimeWorkRequestBuilder
@@ -8,9 +7,13 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import java.time.Instant
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class TaskReminderScheduler(private val context: Context) {
-    private val workManager = WorkManager.getInstance(context)
+@Singleton
+class TaskReminderScheduler @Inject constructor(
+    private val workManager: WorkManager
+) {
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun schedule(taskId: Long, title: String, dueAtMillis: Long) {

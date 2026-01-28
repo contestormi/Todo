@@ -13,29 +13,26 @@ import com.example.todolist.R
 import com.example.todolist.ToDoApp
 import com.example.todolist.databinding.FragmentTaskDetailBinding
 import com.example.todolist.domain.model.Priority
+import com.example.todolist.presentation.model.TaskFormData
 import com.google.android.material.datepicker.MaterialDatePicker
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 class TaskDetailFragment : Fragment(R.layout.fragment_task_detail) {
     private var _binding: FragmentTaskDetailBinding? = null
     private val binding get() = _binding!!
 
-    private val taskId: Long by lazy { requireArguments().getLong(ARG_TASK_ID) }
-
-    private val viewModel: TaskDetailViewModel by viewModels {
-        TaskDetailViewModel.Factory(
-            taskId = taskId,
-            repository = (requireActivity().application as ToDoApp).appContainer.taskRepository
-        )
+    private val taskId: Long? by lazy {
+        val id = requireArguments().getLong(ARG_TASK_ID, -1L)
+        if (id == -1L) null else id
     }
 
-    private val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-        .withZone(ZoneId.systemDefault())
+    private val viewModel: TaskDetailViewModel by viewModels {
+        val component = (requireActivity().application as ToDoApp).appComponent
+        component.taskDetailViewModelFactory().create(taskId)
+    }
 
     private var hasBoundInitialData: Boolean = false
+    private var selectedPriority: Priority = Priority.MEDIUM
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -44,9 +41,9 @@ class TaskDetailFragment : Fragment(R.layout.fragment_task_detail) {
         setupPriorityDropdown()
 
         binding.screenTitleTextView.text =
-            if (taskId == 0L) getString(R.string.newTask) else getString(R.string.task)
+            if (taskId == null) getString(R.string.newTask) else getString(R.string.task)
         binding.deleteButton.visibility =
-            if (taskId == 0L) View.GONE else View.VISIBLE
+            if (taskId == null) View.GONE else View.VISIBLE
         binding.dueDateButton.setOnClickListener { openDatePicker() }
         binding.clearDueDateButton.setOnClickListener { viewModel.setDueAt(null) }
 
@@ -60,12 +57,14 @@ class TaskDetailFragment : Fragment(R.layout.fragment_task_detail) {
                 ).show()
                 return@setOnClickListener
             }
-            val description =
-                binding.descriptionEditText.text?.toString().orEmpty()
-            val priority = priorityFromUi()
-            val isDone = binding.doneCheckBox.isChecked
+            val formData = TaskFormData(
+                title = title,
+                description = binding.descriptionEditText.text?.toString().orEmpty(),
+                priority = selectedPriority,
+                isDone = binding.doneCheckBox.isChecked
+            )
 
-            viewModel.save(title, description, priority, isDone) {
+            viewModel.save(formData) {
                 Toast.makeText(
                     requireContext(),
                     getString(R.string.saved), Toast.LENGTH_SHORT
@@ -103,16 +102,10 @@ class TaskDetailFragment : Fragment(R.layout.fragment_task_detail) {
                     }
                 }
                 launch {
-                    viewModel.dueAtMillis.collect { due ->
+                    viewModel.formattedDueDate.collect { formattedDate ->
                         binding.dueDateButton.text =
-                            if (due == null) getString(R.string.pick_due_date)
-                            else getString(
-                                R.string.due, dateFormatter.format(
-                                    Instant.ofEpochMilli(
-                                        due
-                                    )
-                                )
-                            )
+                            if (formattedDate == null) getString(R.string.pick_due_date)
+                            else getString(R.string.due, formattedDate)
                     }
                 }
             }
@@ -120,32 +113,35 @@ class TaskDetailFragment : Fragment(R.layout.fragment_task_detail) {
     }
 
     private fun setupPriorityDropdown() {
-        val items = listOf(
-            getString(R.string.priorityLow),
-            getString(R.string.priorityMedium),
-            getString(R.string.priorityHigh),
-        )
+        val priorities = listOf(Priority.LOW, Priority.MEDIUM, Priority.HIGH)
+        val items = priorities.map { priority ->
+            getString(
+                when (priority) {
+                    Priority.LOW -> R.string.priorityLow
+                    Priority.MEDIUM -> R.string.priorityMedium
+                    Priority.HIGH -> R.string.priorityHigh
+                }
+            )
+        }
         val adapter = ArrayAdapter(
             requireContext(), android.R.layout.simple_list_item_1, items
         )
         binding.priorityAutoComplete.setAdapter(adapter)
-        if (taskId == 0L) {
+        
+        binding.priorityAutoComplete.setOnItemClickListener { _, _, position, _ ->
+            selectedPriority = priorities[position]
+        }
+        
+        if (taskId == null) {
+            selectedPriority = Priority.MEDIUM
             binding.priorityAutoComplete.setText(
                 getString(R.string.priorityMedium), false
             )
         }
     }
 
-    private fun priorityFromUi(): Priority {
-        return when (binding.priorityAutoComplete.text?.toString()) {
-            getString(R.string.priorityLow) -> Priority.LOW
-            getString(R.string.priorityHigh) -> Priority.HIGH
-            else -> Priority.MEDIUM
-
-        }
-    }
-
     private fun setPriorityToUi(priority: Priority) {
+        selectedPriority = priority
         val text = when (priority) {
             Priority.LOW -> getString(R.string.priorityLow)
             Priority.MEDIUM -> getString(R.string.priorityMedium)
@@ -171,10 +167,13 @@ class TaskDetailFragment : Fragment(R.layout.fragment_task_detail) {
 
     companion object {
         private const val ARG_TASK_ID = "task_id"
+        private const val NEW_TASK_MARKER = -1L
 
-        fun newInstance(taskId: Long): TaskDetailFragment =
+        fun newInstance(taskId: Long?): TaskDetailFragment =
             TaskDetailFragment().apply {
-                arguments = Bundle().apply { putLong(ARG_TASK_ID, taskId) }
+                arguments = Bundle().apply {
+                    putLong(ARG_TASK_ID, taskId ?: NEW_TASK_MARKER)
+                }
             }
     }
 }

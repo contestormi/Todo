@@ -22,19 +22,20 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
     private val binding get() = _binding!!
 
     private val viewModel: TaskListViewModel by viewModels {
-        TaskListViewModel.Factory((requireActivity().application as ToDoApp).appContainer.taskRepository)
+        (requireActivity().application as ToDoApp).appComponent.taskListViewModelFactory()
     }
-
-    private lateinit var adapter: TaskAdapter
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentTaskListBinding.bind(view)
 
         val navigator = activity as? MainNavigator
+        val component = (requireActivity().application as ToDoApp).appComponent
 
-        adapter =
-            TaskAdapter(onClick = { task -> navigator?.openTask(task.id) })
+        val adapter = TaskAdapter(
+            onClick = { task -> navigator?.openTask(task.id) },
+            dateFormatter = component.dateFormatter()
+        )
         binding.tasksRecyclerView.layoutManager =
             LinearLayoutManager(requireContext())
         binding.tasksRecyclerView.adapter = adapter
