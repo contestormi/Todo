@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity(), MainNavigator {
                 )
                 .commit()
         }
-    }
+    }   
 
     override fun openTask(taskId: Long) {
         supportFragmentManager.beginTransaction()

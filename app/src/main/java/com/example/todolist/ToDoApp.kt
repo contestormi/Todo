@@ -6,13 +6,13 @@ import androidx.work.WorkManager
 import com.example.todolist.data.notifications.NotificationHelper
 import com.example.todolist.di.AppComponent
 import com.example.todolist.di.DaggerAppComponent
-import com.example.todolist.di.DatabaseModule
 
 class ToDoApp : Application() {
     val appComponent: AppComponent by lazy {
-        DaggerAppComponent.builder()
-            .databaseModule(DatabaseModule(this))
-            .build()
+        DaggerAppComponent.factory().create(
+            this,
+            this.applicationContext
+        )
     }
 
     override fun onCreate() {

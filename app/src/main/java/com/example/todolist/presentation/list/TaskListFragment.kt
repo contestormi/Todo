@@ -22,25 +22,34 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
     private val binding get() = _binding!!
 
     private val viewModel: TaskListViewModel by viewModels {
-        (requireActivity().application as ToDoApp).appComponent.taskListViewModelFactory()
+        (requireActivity().application as ToDoApp).appComponent.taskListViewModelFactory().create()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentTaskListBinding.bind(view)
 
+        val adapter = setupRecyclerView()
+        setupSortToggle()
+        setupSearch()
+        setupFab()
+        setupObservers(adapter)
+    }
+
+    private fun setupRecyclerView(): TaskAdapter {
         val navigator = activity as? MainNavigator
         val component = (requireActivity().application as ToDoApp).appComponent
-
         val adapter = TaskAdapter(
             onClick = { task -> navigator?.openTask(task.id) },
             dateFormatter = component.dateFormatter()
         )
-        binding.tasksRecyclerView.layoutManager =
-            LinearLayoutManager(requireContext())
+        binding.tasksRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.tasksRecyclerView.adapter = adapter
         binding.tasksRecyclerView.setHasFixedSize(true)
+        return adapter
+    }
 
+    private fun setupSortToggle() {
         binding.sortToggle.check(binding.sortByCreatedAtButton.id)
         binding.sortToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
@@ -49,15 +58,22 @@ class TaskListFragment : Fragment(R.layout.fragment_task_list) {
                 binding.sortByPriorityButton.id -> viewModel.setSort(TaskSort.PRIORITY_DESC)
             }
         }
+    }
 
+    private fun setupSearch() {
         binding.searchEditText.doAfterTextChanged { text ->
             viewModel.setQuery(text?.toString().orEmpty())
         }
+    }
 
+    private fun setupFab() {
+        val navigator = activity as? MainNavigator
         binding.addTaskFab.setOnClickListener {
             navigator?.openNewTask()
         }
+    }
 
+    private fun setupObservers(adapter: TaskAdapter) {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {

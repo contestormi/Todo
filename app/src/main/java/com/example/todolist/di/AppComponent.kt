@@ -1,14 +1,12 @@
 package com.example.todolist.di
 
+import android.app.Application
+import android.content.Context
 import com.example.todolist.data.formatter.DateFormatter
 import com.example.todolist.data.notifications.TaskReminderWorkerFactory
-import com.example.todolist.domain.usecase.DeleteTaskUseCase
-import com.example.todolist.domain.usecase.ObserveTaskUseCase
-import com.example.todolist.domain.usecase.ObserveTasksUseCase
-import com.example.todolist.domain.usecase.SearchTasksUseCase
-import com.example.todolist.domain.usecase.UpsertTaskUseCase
 import com.example.todolist.presentation.detail.TaskDetailViewModel
 import com.example.todolist.presentation.list.TaskListViewModel
+import dagger.BindsInstance
 import dagger.Component
 import javax.inject.Singleton
 
@@ -20,11 +18,15 @@ import javax.inject.Singleton
     ]
 )
 interface AppComponent {
-    fun observeTasksUseCase(): ObserveTasksUseCase
-    fun searchTasksUseCase(): SearchTasksUseCase
-    fun observeTaskUseCase(): ObserveTaskUseCase
-    fun upsertTaskUseCase(): UpsertTaskUseCase
-    fun deleteTaskUseCase(): DeleteTaskUseCase
+
+    @Component.Factory
+    interface Factory {
+        fun create(
+            @BindsInstance application: Application,
+            @BindsInstance context: Context
+        ): AppComponent
+    }
+
     fun dateFormatter(): DateFormatter
     fun taskReminderWorkerFactory(): TaskReminderWorkerFactory
     fun taskListViewModelFactory(): TaskListViewModel.Factory

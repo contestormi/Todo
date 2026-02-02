@@ -31,74 +31,56 @@ class TaskDetailFragment : Fragment(R.layout.fragment_task_detail) {
         component.taskDetailViewModelFactory().create(taskId)
     }
 
-    private var hasBoundInitialData: Boolean = false
-    private var selectedPriority: Priority = Priority.MEDIUM
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentTaskDetailBinding.bind(view)
 
         setupPriorityDropdown()
+        setupUI()
+        setupObservers()
+    }
 
+    private fun setupUI() {
         binding.screenTitleTextView.text =
             if (taskId == null) getString(R.string.newTask) else getString(R.string.task)
         binding.deleteButton.visibility =
             if (taskId == null) View.GONE else View.VISIBLE
+
         binding.dueDateButton.setOnClickListener { openDatePicker() }
         binding.clearDueDateButton.setOnClickListener { viewModel.setDueAt(null) }
 
-        binding.saveButton.setOnClickListener {
-            val title = binding.titleEditText.text?.toString().orEmpty()
-            if (title.isBlank()) {
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.error_empty_title),
-                    Toast.LENGTH_SHORT
-                ).show()
-                return@setOnClickListener
-            }
-            val formData = TaskFormData(
-                title = title,
-                description = binding.descriptionEditText.text?.toString().orEmpty(),
-                priority = selectedPriority,
-                isDone = binding.doneCheckBox.isChecked
-            )
-
-            viewModel.save(formData) {
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.saved), Toast.LENGTH_SHORT
-                ).show()
-                requireActivity().onBackPressedDispatcher.onBackPressed()
-            }
-
-
-        }
-
-        binding.deleteButton.setOnClickListener {
-            viewModel.delete {
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.deleted), Toast.LENGTH_SHORT
-                ).show()
-                requireActivity().onBackPressedDispatcher.onBackPressed()
-            }
-        }
-
+        binding.saveButton.setOnClickListener { onSaveClick() }
+        binding.deleteButton.setOnClickListener { onDeleteClick() }
         binding.backButton.setOnClickListener {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
+    }
 
+    private fun onSaveClick() {
+        val formData = TaskFormData(
+            title = binding.titleEditText.text?.toString().orEmpty(),
+            description = binding.descriptionEditText.text?.toString().orEmpty(),
+            priority = viewModel.selectedPriority.value,
+            isDone = binding.doneCheckBox.isChecked
+        )
+        viewModel.save(formData)
+    }
+
+    private fun onDeleteClick() {
+        viewModel.delete()
+    }
+
+    private fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.task.collect { task ->
-                        if (task == null || hasBoundInitialData) return@collect
-                        hasBoundInitialData = true
+                    viewModel.initialTaskToBind.collect { task ->
+                        if (task == null) return@collect
                         binding.titleEditText.setText(task.title)
                         binding.descriptionEditText.setText(task.description)
                         setPriorityToUi(task.priority)
                         binding.doneCheckBox.isChecked = task.isDone
+                        viewModel.markInitialDataBound()
                     }
                 }
                 launch {
@@ -106,6 +88,32 @@ class TaskDetailFragment : Fragment(R.layout.fragment_task_detail) {
                         binding.dueDateButton.text =
                             if (formattedDate == null) getString(R.string.pick_due_date)
                             else getString(R.string.due, formattedDate)
+                    }
+                }
+                launch {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            is TaskDetailEvent.EmptyTitleError ->
+                                Toast.makeText(
+                                    requireContext(),
+                                    getString(R.string.error_empty_title),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            is TaskDetailEvent.Saved ->
+                                Toast.makeText(
+                                    requireContext(),
+                                    getString(R.string.saved),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            is TaskDetailEvent.Deleted ->
+                                Toast.makeText(
+                                    requireContext(),
+                                    getString(R.string.deleted),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            is TaskDetailEvent.NavigateBack ->
+                                requireActivity().onBackPressedDispatcher.onBackPressed()
+                        }
                     }
                 }
             }
@@ -129,11 +137,11 @@ class TaskDetailFragment : Fragment(R.layout.fragment_task_detail) {
         binding.priorityAutoComplete.setAdapter(adapter)
         
         binding.priorityAutoComplete.setOnItemClickListener { _, _, position, _ ->
-            selectedPriority = priorities[position]
+            viewModel.setSelectedPriority(priorities[position])
         }
-        
+
         if (taskId == null) {
-            selectedPriority = Priority.MEDIUM
+            viewModel.setSelectedPriority(Priority.MEDIUM)
             binding.priorityAutoComplete.setText(
                 getString(R.string.priorityMedium), false
             )
@@ -141,7 +149,7 @@ class TaskDetailFragment : Fragment(R.layout.fragment_task_detail) {
     }
 
     private fun setPriorityToUi(priority: Priority) {
-        selectedPriority = priority
+        viewModel.setSelectedPriority(priority)
         val text = when (priority) {
             Priority.LOW -> getString(R.string.priorityLow)
             Priority.MEDIUM -> getString(R.string.priorityMedium)

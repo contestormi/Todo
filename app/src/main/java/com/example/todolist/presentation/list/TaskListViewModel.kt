@@ -50,14 +50,18 @@ class TaskListViewModel(
     class Factory @Inject constructor(
         private val observeTasks: ObserveTasksUseCase,
         private val searchTasks: SearchTasksUseCase,
-    ) : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            require(modelClass.isAssignableFrom(TaskListViewModel::class.java)) {
-                "Unknown ViewModel class: ${modelClass.name}"
+    ) {
+        fun create(): ViewModelProvider.Factory {
+            return object : ViewModelProvider.Factory {
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    require(modelClass.isAssignableFrom(TaskListViewModel::class.java)) {
+                        "Unknown ViewModel class: ${modelClass.name}"
+                    }
+                    val viewModel = TaskListViewModel(observeTasks, searchTasks)
+                    return modelClass.cast(viewModel)
+                        ?: throw IllegalStateException("Failed to cast ViewModel")
+                }
             }
-            val viewModel = TaskListViewModel(observeTasks, searchTasks)
-            return modelClass.cast(viewModel)
-                ?: throw IllegalStateException("Failed to cast ViewModel")
         }
     }
 }

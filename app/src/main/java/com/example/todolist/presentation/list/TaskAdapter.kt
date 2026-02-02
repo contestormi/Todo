@@ -54,6 +54,7 @@ class TaskAdapter(
                 Priority.LOW -> context.getString(R.string.priorityLow)
                 Priority.MEDIUM -> context.getString(R.string.priorityMedium)
                 Priority.HIGH -> context.getString(R.string.priorityHigh)
+                else -> context.getString(R.string.priorityMedium)
             }
 
             val dueText = dateFormatter.formatOrNull(item.dueAtMillis) ?: "—"
