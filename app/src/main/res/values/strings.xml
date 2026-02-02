@@ -1,3 +1,30 @@
 <resources>
     <string name="app_name">TodoList</string>
+    <string name="description">Описание</string>
+    <string name="title">Название</string>
+    <string name="priority">Приоритет</string>
+    <string name="pick_due_date">Выбрать дату выполнения</string>
+    <string name="clear_due_date">Сбросить дату</string>
+    <string name="mark_done">Выполнено</string>
+    <string name="save">Сохранить</string>
+    <string name="delete">Удалить</string>
+    <string name="back">Назад</string>
+    <string name="search_hint">Поиск по задачам</string>
+    <string name="sort_created">По дате</string>
+    <string name="sort_priority">По приоритету</string>
+    <string name="empty_state">Пока нет задач</string>
+    <string name="add_task">Добавить задауч</string>
+    <string name="priorityLow">Низкий</string>
+    <string name="saved">Сохранено</string>
+    <string name="deleted">Удалено</string>
+    <string name="newTask">Новая задача</string>
+    <string name="task">Задача</string>
+    <string name="error_empty_title">Название не может быть пустым</string>
+    <string name="due">Срок: %1$s</string>
+    <string name="priorityMedium">Средний</string>
+    <string name="priorityHigh">Высокий</string>
+    <string name="done">Готово</string>
+    <string name="inWork">В работе</string>
+    <string name="priorityAndDue">Приоритет: %1$s • Срок: %2$s</string>
+    <string name="dueSoon">Скоро срок задачи</string>
 </resources>
